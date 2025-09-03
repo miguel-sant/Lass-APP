@@ -14,7 +14,7 @@ class MealController extends Controller
             'amount' => 'required|numeric|min:1',
             'meal_type' => 'required|in:Manhã,Tarde,Noite' // Validação para o turno
         ]);
-        
+
         // Pega o usuário logado ou o primeiro usuário para teste
         $user = auth()->user() ?? \App\Models\User::first();
 

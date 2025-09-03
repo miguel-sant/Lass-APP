@@ -1,6 +1,405 @@
 @extends('layouts.app')
 
 @section('content')
+    <style>
+        dashboard-wrapper {
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --card-border: #e5e7eb;
+            --text: #111827;
+            --text-muted: #6b7280;
+            --primary: #3b82f6;
+            --primary-soft: #e0f2fe;
+            --warn: #facc15;
+            --danger: #f87171;
+            --success: #10b981;
+            --fat: #facc15;
+            --carb: #3b82f6;
+            --protein: #f87171;
+            --radius: 24px;
+            --shadow: 0 4px 12px -2px rgba(0, 0, 0, .06), 0 2px 4px -1px rgba(0, 0, 0, .04);
+            background: var(--bg);
+            color: var(--text);
+            padding: 0.5rem 0.75rem 3rem;
+        }
+
+        .dashboard-wrapper.dark {
+            --bg: #0f141b;
+            --card-bg: #18222e;
+            --card-border: #243040;
+            --text: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #60a5fa;
+            --primary-soft: #1e3a5f;
+            --shadow: 0 4px 14px -2px rgba(0, 0, 0, .55);
+        }
+
+        .dashboard-wrapper .card,
+        .dashboard-wrapper .meeting-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            transition: background .25s, color .25s, border-color .25s;
+        }
+
+        .dashboard-wrapper .toggle-theme {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 14px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            user-select: none;
+        }
+
+        .dashboard-wrapper.dark .toggle-theme {
+            color: #fff;
+        }
+
+        .fab-add {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 54px;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 18px;
+            font-size: 26px;
+            box-shadow: 0 6px 18px -4px rgba(0, 0, 0, .3);
+            cursor: pointer;
+            z-index: 900;
+            transition: transform .18s, background .25s;
+        }
+
+        .dashboard-wrapper.dark .fab-add {
+            background: var(--primary-soft);
+        }
+
+        .fab-add:hover {
+            transform: scale(1.07);
+        }
+
+        .macros-inline {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .macro-chip {
+            flex: 1;
+            height: 8px;
+            border-radius: 8px;
+            background: #e5e7eb;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-wrapper.dark .macro-chip {
+            background: #1f2a36;
+        }
+
+        .macro-chip span {
+            position: absolute;
+            inset: 0;
+            border-radius: 8px;
+            transition: width .5s;
+        }
+
+        .macro-chip[data-type="carb"] span {
+            background: var(--carb);
+        }
+
+        .macro-chip[data-type="protein"] span {
+            background: var(--protein);
+        }
+
+        .macro-chip[data-type="fat"] span {
+            background: var(--fat);
+        }
+
+        /* Calendário */
+        .streak-card .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: .75rem;
+        }
+
+        .streak-card .month-select {
+            background: var(--primary-soft);
+            border: none;
+            border-radius: 18px;
+            padding: 6px 14px;
+            font-size: .85rem;
+            cursor: pointer;
+            appearance: none;
+            position: relative;
+            font-weight: 500;
+        }
+
+        .streak-card .month-select:focus {
+            outline: 2px solid var(--primary);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            justify-items: center;
+            margin-bottom: 10px;
+        }
+
+        .calendar-grid .cell {
+            width: 44px;
+            aspect-ratio: 1/1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            font-size: .72rem;
+            color: var(--text-muted);
+            border-radius: 12px;
+            transition: background .2s, transform .15s;
+        }
+
+        .calendar-grid .cell .num {
+            font-size: .85rem;
+            font-weight: 500;
+            color: var(--text);
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .dashboard-wrapper.dark .calendar-grid .cell {
+            color: var(--text-muted);
+        }
+
+        .calendar-grid .cell.today {
+            background: var(--warn);
+            box-shadow: 0 0 0 3px rgba(250, 204, 21, .35);
+        }
+
+        .calendar-grid .cell.today .num {
+            color: #111;
+        }
+
+        .calendar-grid .cell.hit::after {
+            content: '✔';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: .65rem;
+            color: #111;
+            background: rgba(255, 255, 255, .6);
+            padding: 2px 4px;
+            border-radius: 6px;
+        }
+
+        .calendar-grid .cell:hover {
+            transform: translateY(-3px);
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-size: .65rem;
+            letter-spacing: .5px;
+            margin-bottom: 4px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* Indicadores (opcional manter) */
+        .indicator-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .indicator-line {
+            height: 2px;
+            flex: 1;
+            background: #d1d5db;
+            position: relative;
+            border-radius: 2px;
+        }
+
+        .dashboard-wrapper.dark .indicator-line {
+            background: #2c3a49;
+        }
+
+        .indicator-dot {
+            width: 8px;
+            height: 8px;
+            background: #cbd5e1;
+            border-radius: 50%;
+            transform: scale(.9);
+            opacity: .6;
+        }
+
+        .indicator-dot.indicator-active {
+            background: var(--primary);
+            transform: scale(1.2);
+            opacity: 1;
+        }
+
+        :root {
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --card-border: #e5e7eb;
+            --text: #111827;
+            --text-muted: #6b7280;
+            --primary: #3b82f6;
+            --primary-soft: #e0f2fe;
+            --warn: #facc15;
+            --danger: #f87171;
+            --success: #10b981;
+            --fat: #facc15;
+            --carb: #3b82f6;
+            --protein: #f87171;
+            --radius: 24px;
+            --shadow: 0 4px 12px -2px rgba(0, 0, 0, .06), 0 2px 4px -1px rgba(0, 0, 0, .04);
+        }
+
+        .dark {
+            --bg: #0f141b;
+            --card-bg: #18222e;
+            --card-border: #243040;
+            --text: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #60a5fa;
+            --primary-soft: #1e3a5f;
+            --shadow: 0 4px 14px -2px rgba(0, 0, 0, .55);
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .card,
+        .meeting-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            transition: background .25s, color .25s;
+        }
+
+        .day-item {
+            transition: background .2s, transform .15s;
+        }
+
+        .day-item.day-active .day-number {
+            background: var(--warn);
+            color: #111;
+            border-radius: 50%;
+        }
+
+        .day-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .macros-inline {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .macro-chip {
+            flex: 1;
+            height: 8px;
+            border-radius: 8px;
+            background: #e5e7eb;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .macro-chip span {
+            position: absolute;
+            inset: 0;
+            border-radius: 8px;
+            transition: width .5s;
+        }
+
+        .macro-chip[data-type="carb"] span {
+            background: var(--carb);
+        }
+
+        .macro-chip[data-type="protein"] span {
+            background: var(--protein);
+        }
+
+        .macro-chip[data-type="fat"] span {
+            background: var(--fat);
+        }
+
+        .fab-add {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 54px;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 18px;
+            font-size: 26px;
+            box-shadow: 0 6px 18px -4px rgba(0, 0, 0, .3);
+            cursor: pointer;
+            z-index: 900;
+            transition: transform .2s, background .25s;
+        }
+
+        .fab-add:hover {
+            transform: scale(1.07);
+        }
+
+        .dark .fab-add {
+            background: var(--primary-soft);
+        }
+
+        .toggle-theme {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 14px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            user-select: none;
+        }
+
+        .dark .toggle-theme {
+            color: #fff;
+        }
+    </style>
+    <div class="toggle-theme" id="themeToggle">Modo</div>
+    <button class="fab-add" id="quickAddBtn" aria-label="Adicionar alimento">+</button>
+    
+    {{-- Inserir barra compacta depois do donut --}}
+    <div class="macros-inline">
+        <div class="macro-chip" data-type="carb"><span style="width:0%"></span></div>
+        <div class="macro-chip" data-type="protein"><span style="width:0%"></span></div>
+        <div class="macro-chip" data-type="fat"><span style="width:0%"></span></div>
+    </div>
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">Hoje</h4>
         <div>
@@ -15,38 +414,43 @@
                 <h6 class="mb-4 text-center">Alimentação por Turno</h6>
                 <div class="row text-center">
                     <div class="col">
-                        <div class="meal-period-chart-container mx-auto" data-meal-type="Manhã" data-bs-toggle="modal" data-bs-target="#foodSearchModal">
+                        <div class="meal-period-chart-container mx-auto" data-meal-type="Manhã" data-bs-toggle="modal"
+                            data-bs-target="#foodSearchModal">
                             <canvas id="morningChart"></canvas>
                             <div class="meal-period-icon">
                                 <i class="fas fa-mug-hot"></i>
                             </div>
                         </div>
                         <div class="mt-2 fw-bold">Manhã</div>
-                        <div class="small text-muted" id="morning-calories">0 / {{ round($user->daily_calorie_target / 3) }} kcal</div>
+                        <div class="small text-muted" id="morning-calories">0 / {{ round($user->daily_calorie_target / 3) }}
+                            kcal</div>
                     </div>
                     <div class="col">
-                         <div class="meal-period-chart-container mx-auto" data-meal-type="Tarde" data-bs-toggle="modal" data-bs-target="#foodSearchModal">
+                        <div class="meal-period-chart-container mx-auto" data-meal-type="Tarde" data-bs-toggle="modal"
+                            data-bs-target="#foodSearchModal">
                             <canvas id="afternoonChart"></canvas>
-                             <div class="meal-period-icon">
+                            <div class="meal-period-icon">
                                 <i class="fas fa-sun"></i>
                             </div>
                         </div>
                         <div class="mt-2 fw-bold">Tarde</div>
-                        <div class="small text-muted" id="afternoon-calories">0 / {{ round($user->daily_calorie_target / 3) }} kcal</div>
+                        <div class="small text-muted" id="afternoon-calories">0 /
+                            {{ round($user->daily_calorie_target / 3) }} kcal</div>
                     </div>
                     <div class="col">
-                        <div class="meal-period-chart-container mx-auto" data-meal-type="Noite" data-bs-toggle="modal" data-bs-target="#foodSearchModal">
+                        <div class="meal-period-chart-container mx-auto" data-meal-type="Noite" data-bs-toggle="modal"
+                            data-bs-target="#foodSearchModal">
                             <canvas id="eveningChart"></canvas>
                             <div class="meal-period-icon">
                                 <i class="fas fa-moon"></i>
                             </div>
                         </div>
                         <div class="mt-2 fw-bold">Noite</div>
-                        <div class="small text-muted" id="evening-calories">0 / {{ round($user->daily_calorie_target / 3) }} kcal</div>
+                        <div class="small text-muted" id="evening-calories">0 / {{ round($user->daily_calorie_target / 3) }}
+                            kcal</div>
                     </div>
                 </div>
             </div>
-
 
             <div class="card card-compact p-3 p-md-4">
                 <h6 class="mb-3 text-center text-md-start">Resumo do Dia</h6>
@@ -116,7 +520,82 @@
 
             </div>
         </div>
+        <!-- From Uiverse.io by juyi_2230 -->
+        <div id="dashboardRoot" class="dashboard-wrapper">
+            <div class="toggle-theme" id="themeToggle">Modo</div>
+            <button class="fab-add" id="quickAddBtn" aria-label="Adicionar alimento">+</button>
 
+            {{-- restante do conteúdo existente (cards, gráficos etc) --}}
+
+            {{-- Substituir o bloco atual da "Sequência Dieta" pelo abaixo --}}
+            <div class="meeting-card streak-card mt-4 p-3">
+                <div class="calendar-header">
+                    <div class="title m-0" style="font-weight:600; font-size:1.05rem;">
+                        Sequência<br>Dieta
+                    </div>
+                    <form id="monthForm" method="GET" style="margin:0;">
+                        <select class="month-select" name="month"
+                            onchange="document.getElementById('monthForm').submit()">
+                            @for ($m = 1; $m <= 12; $m++)
+                                <option value="{{ $m }}" {{ $selectedMonth == $m ? 'selected' : '' }}>
+                                    {{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}
+                                </option>
+                            @endfor
+                        </select>
+                        <select class="month-select" name="year"
+                            onchange="document.getElementById('monthForm').submit()">
+                            @for ($y = now()->year - 1; $y <= now()->year + 1; $y++)
+                                <option value="{{ $y }}" {{ $selectedYear == $y ? 'selected' : '' }}>
+                                    {{ $y }}</option>
+                            @endfor
+                        </select>
+                    </form>
+                </div>
+
+                @php
+                    $firstWeekday = \Carbon\Carbon::create($selectedYear, $selectedMonth, 1)->dayOfWeekIso; //1=Mon
+                    $daysInMonth = count($monthDays);
+                    $blanks = $firstWeekday - 1;
+                @endphp
+
+                <div class="calendar-weekdays">
+                    @foreach (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $wd)
+                        <div>{{ $wd }}</div>
+                    @endforeach
+                </div>
+
+                <div class="calendar-grid">
+                    @for ($i = 0; $i < $blanks; $i++)
+                        <div class="cell" style="visibility:hidden;"></div>
+                    @endfor
+
+                    @foreach ($monthDays as $d)
+                        @php
+                            $hit = !empty($streaks[$d['date']]);
+                            $classes = [];
+                            if ($d['is_today']) {
+                                $classes[] = 'today';
+                            }
+                            if ($hit) {
+                                $classes[] = 'hit';
+                            }
+                        @endphp
+                        <div class="cell {{ implode(' ', $classes) }}" title="{{ $d['date'] }}">
+                            <div class="num">{{ $d['day'] }}</div>
+                            <div class="wk">{{ $d['weekday'] }}</div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="indicator-container">
+                    <div class="indicator-line"></div>
+                    @foreach ($weekDays as $day)
+                        <div class="indicator-dot {{ $day['is_today'] ? 'indicator-active' : '' }}"></div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        {{-- 
         <div class="col-lg-5">
             <div class="card card-compact p-3">
                 <h6 class="mb-2">Refeições de Hoje</h6>
@@ -124,11 +603,11 @@
                     <small class="text-muted fw-bold">MANHÃ</small>
                     <ul class="list-group list-group-flush mb-2"></ul>
                 </div>
-                 <div id="meal-list-afternoon">
+                <div id="meal-list-afternoon">
                     <small class="text-muted fw-bold">TARDE</small>
                     <ul class="list-group list-group-flush mb-2"></ul>
                 </div>
-                 <div id="meal-list-evening">
+                <div id="meal-list-evening">
                     <small class="text-muted fw-bold">NOITE</small>
                     <ul class="list-group list-group-flush"></ul>
                 </div>
@@ -136,17 +615,42 @@
                     Nenhum alimento registrado hoje.
                 </div>
             </div>
-        </div>
+        </div> --}}
     </div>
 
     @include('partials._food_search_modal')
 
     @push('scripts')
         <script>
+            (function() {
+                const root = document.getElementById('dashboardRoot');
+                const saved = localStorage.getItem('dash-theme');
+                if (saved === 'dark') root.classList.add('dark');
+                document.getElementById('themeToggle').onclick = () => {
+                    root.classList.toggle('dark');
+                    localStorage.setItem('dash-theme', root.classList.contains('dark') ? 'dark' : 'light');
+                };
+                document.getElementById('quickAddBtn').onclick = () => {
+                    document.querySelector('.meal-period-chart-container')?.click();
+                };
+            })();
+
+            function applyMacroBars(consumed, goals) {
+                const pct = (c, g) => g > 0 ? Math.min(100, (c / g) * 100) : 0;
+                const sel = s => document.querySelector(s);
+                sel('.macro-chip[data-type="carb"] span')?.style.setProperty('width', pct(consumed.carbs, goals.carbs) + '%');
+                sel('.macro-chip[data-type="protein"] span')?.style.setProperty('width', pct(consumed.protein, goals.protein) +
+                    '%');
+                sel('.macro-chip[data-type="fat"] span')?.style.setProperty('width', pct(consumed.fat, goals.fat) + '%');
+            }
+        </script>
+        <script>
             $(function() {
                 // Configura o CSRF para chamadas AJAX
                 $.ajaxSetup({
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    }
                 });
 
                 // Pega os dados passados pelo Controller
@@ -154,34 +658,45 @@
                 const sumsByPeriod = @json($sumsByPeriod);
                 const recentMeals = @json($recent);
                 const userGoals = @json($user);
-                
+
                 // --- Lógica do Modal ---
                 const foodSearchModal = new bootstrap.Modal(document.getElementById('foodSearchModal'));
                 let currentMealType = ''; // Manhã, Tarde ou Noite
 
                 $('.meal-period-chart-container').on('click', function() {
                     currentMealType = $(this).data('meal-type');
-                    // Opcional: Limpar busca anterior ao abrir o modal
+                    $('#meal_type_input').val(currentMealType); // <-- Atualiza o input hidden
                     $('#searchInput').val('');
                     $('#results').html('');
                     $('#foodSearchModalLabel').text('Adicionar em: ' + currentMealType);
                 });
-                
+
                 $('#addFoodForm').on('submit', function(e) {
                     e.preventDefault();
-                    
+                    if (!currentMealType) {
+                        alert('Selecione o período (Manhã, Tarde ou Noite) antes de adicionar.');
+                        return;
+                    }
                     const formData = $(this).serializeArray();
-                    formData.push({name: "meal_type", value: currentMealType});
-
-                    $.post("{{ route('meal.store') }}", formData)
-                    .done(function(response) {
-                        if(response.success) {
-                            foodSearchModal.hide();
-                            location.reload(); 
-                        }
-                    }).fail(function() {
-                        alert('Ocorreu um erro ao adicionar o alimento.');
+                    formData.push({
+                        name: "meal_type",
+                        value: currentMealType
                     });
+
+                    const data = {};
+                    formData.forEach(function(item) {
+                        data[item.name] = item.value;
+                    });
+
+                    $.post("{{ route('meal.store') }}", data)
+                        .done(function(response) {
+                            if (response.success) {
+                                foodSearchModal.hide();
+                                location.reload();
+                            }
+                        }).fail(function() {
+                            alert('Ocorreu um erro ao adicionar o alimento.');
+                        });
                 });
 
 
@@ -208,7 +723,8 @@
                     $('#fat-details').text(`${consumed.fat} / ${goals.fat}g`);
 
                     // --- Atualizar Barras de Progresso de Macros ---
-                    const proteinPercent = goals.protein > 0 ? Math.min(100, (consumed.protein / goals.protein) * 100) : 0;
+                    const proteinPercent = goals.protein > 0 ? Math.min(100, (consumed.protein / goals.protein) * 100) :
+                        0;
                     $('#protein-progress').css('width', proteinPercent + '%').attr('aria-valuenow', proteinPercent);
                     const carbsPercent = goals.carbs > 0 ? Math.min(100, (consumed.carbs / goals.carbs) * 100) : 0;
                     $('#carbs-progress').css('width', carbsPercent + '%').attr('aria-valuenow', carbsPercent);
@@ -216,56 +732,64 @@
                     $('#fat-progress').css('width', fatPercent + '%').attr('aria-valuenow', fatPercent);
 
                     // --- Renderizar Gráfico de Calorias Principal ---
-                    renderDonutChart('caloriesChart', [consumed.calories, remainingCalories], ['#3b82f6', '#e5e7eb'], '80%');
-                
+                    renderDonutChart('caloriesChart', [consumed.calories, remainingCalories], ['#3b82f6', '#e5e7eb'],
+                        '80%');
+
                     // --- Renderizar Gráficos por Turno ---
                     const periodGoal = Math.round(goals.calories / 3);
-                    
+
                     const morningConsumed = Math.round(sumsByPeriod.Manhã.calories);
                     const morningRemaining = Math.max(0, periodGoal - morningConsumed);
                     $('#morning-calories').text(`${morningConsumed} / ${periodGoal} kcal`);
-                    renderDonutChart('morningChart', [morningConsumed, morningRemaining], ['#facc15', '#f3f4f6'], '75%');
+                    renderDonutChart('morningChart', [morningConsumed, morningRemaining], ['#facc15', '#f3f4f6'],
+                        '75%');
 
                     const afternoonConsumed = Math.round(sumsByPeriod.Tarde.calories);
                     const afternoonRemaining = Math.max(0, periodGoal - afternoonConsumed);
                     $('#afternoon-calories').text(`${afternoonConsumed} / ${periodGoal} kcal`);
-                    renderDonutChart('afternoonChart', [afternoonConsumed, afternoonRemaining], ['#fb923c', '#f3f4f6'], '75%');
+                    renderDonutChart('afternoonChart', [afternoonConsumed, afternoonRemaining], ['#fb923c', '#f3f4f6'],
+                        '75%');
 
                     const eveningConsumed = Math.round(sumsByPeriod.Noite.calories);
                     const eveningRemaining = Math.max(0, periodGoal - eveningConsumed);
                     $('#evening-calories').text(`${eveningConsumed} / ${periodGoal} kcal`);
-                    renderDonutChart('eveningChart', [eveningConsumed, eveningRemaining], ['#60a5fa', '#f3f4f6'], '75%');
-                
+                    renderDonutChart('eveningChart', [eveningConsumed, eveningRemaining], ['#60a5fa', '#f3f4f6'],
+                        '75%');
+
                     // --- Renderizar Lista de Refeições ---
                     updateMealList();
                 }
-                
+
                 function updateMealList() {
                     // Limpa listas existentes
                     $('#meal-list-morning ul, #meal-list-afternoon ul, #meal-list-evening ul').empty();
-                    
+
                     if (recentMeals.length === 0) {
                         $('#no-meals-today').show();
                         $('#meal-list-morning, #meal-list-afternoon, #meal-list-evening').hide();
                         return;
                     }
-                    
+
                     $('#no-meals-today').hide();
                     $('#meal-list-morning, #meal-list-afternoon, #meal-list-evening').show();
 
-                    let mealsByPeriod = { Manhã: [], Tarde: [], Noite: [] };
+                    let mealsByPeriod = {
+                        Manhã: [],
+                        Tarde: [],
+                        Noite: []
+                    };
                     recentMeals.forEach(meal => {
                         if (mealsByPeriod[meal.meal_type]) {
                             mealsByPeriod[meal.meal_type].push(meal);
                         }
                     });
-                    
+                    console.log(mealsByPeriod);
                     const renderList = (period, meals) => {
                         const $list = $(`#meal-list-${period.toLowerCase()} ul`);
-                        if(meals.length > 0) {
-                           $(`#meal-list-${period.toLowerCase()}`).show();
-                           meals.forEach(meal => {
-                               $list.append(`
+                        if (meals.length > 0) {
+                            $(`#meal-list-${period.toLowerCase()}`).show();
+                            meals.forEach(meal => {
+                                $list.append(`
                                 <li class="list-group-item d-flex justify-content-between align-items-center small p-2">
                                     <div>
                                         <div class="fw-bold">${meal.food.name}</div>
@@ -273,12 +797,12 @@
                                     </div>
                                     <span class="badge bg-primary rounded-pill">${Math.round(meal.calories)} kcal</span>
                                 </li>`);
-                           });
+                            });
                         } else {
                             $(`#meal-list-${period.toLowerCase()}`).hide();
                         }
                     };
-                    
+
                     renderList('Manhã', mealsByPeriod.Manhã);
                     renderList('Tarde', mealsByPeriod.Tarde);
                     renderList('Noite', mealsByPeriod.Noite);
@@ -305,8 +829,12 @@
                             maintainAspectRatio: false,
                             cutout: cutout,
                             plugins: {
-                                legend: { display: false },
-                                tooltip: { enabled: false }
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    enabled: false
+                                }
                             },
                             events: [] // Desabilita interações com o gráfico
                         }

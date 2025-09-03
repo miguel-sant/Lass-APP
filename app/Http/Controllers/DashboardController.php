@@ -11,7 +11,6 @@ class DashboardController extends Controller
 {
     public function index(Request $req)
     {
-        // Pega o usuário logado ou cria um de exemplo
         $user = auth()->user() ?? User::firstOrCreate(
             ['email' => 'mocado@example.com'],
             [
@@ -24,16 +23,17 @@ class DashboardController extends Controller
             ]
         );
 
-        $today = now()->toDateString();
+        $selectedMonth = $req->input('month', now()->month);
+        $selectedYear = $req->input('year', now()->year);
 
-        // Pega todas as refeições de hoje
+        $today = now();
+
         $recent = Meal::with('food')
             ->where('user_id', $user->id)
             ->whereDate('consumed_at', $today)
-            ->orderBy('consumed_at', 'asc') // Ordena por hora para a lista
+            ->orderBy('consumed_at', 'asc')
             ->get();
 
-        // Calcula a soma total do dia
         $sums = [
             'calories' => $recent->sum('calories'),
             'protein' => $recent->sum('protein'),
@@ -41,13 +41,46 @@ class DashboardController extends Controller
             'fat' => $recent->sum('fat'),
         ];
         
-        // Calcula as somas por período
         $sumsByPeriod = [
             'Manhã' => ['calories' => $recent->where('meal_type', 'Manhã')->sum('calories')],
             'Tarde' => ['calories' => $recent->where('meal_type', 'Tarde')->sum('calories')],
             'Noite' => ['calories' => $recent->where('meal_type', 'Noite')->sum('calories')],
         ];
 
-        return view('layouts.dashboard', compact('recent', 'sums', 'sumsByPeriod', 'user'));
+        $month = $selectedMonth;
+        $year = $selectedYear;
+        $daysInMonth = now()->daysInMonth;
+
+        $streaks = \App\Models\UserStreak::where('user_id', auth()->id())
+            ->whereMonth('date', $month)
+            ->whereYear('date', $year)
+            ->pluck('completed', 'date')
+            ->toArray();
+
+        $weekDays = [];
+        for ($i = -4; $i <= 1; $i++) {
+            $date = $today->copy()->addDays($i);
+            $weekDays[] = [
+                'date' => $date->toDateString(),
+                'day' => $date->day,
+                'weekday' => $date->format('D'),
+                'is_today' => $date->isToday(),
+            ];
+        }
+
+        $firstDayOfMonth = Carbon::create($selectedYear, $selectedMonth, 1);
+        $daysInMonth = $firstDayOfMonth->daysInMonth;
+        $monthDays = [];
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $date = Carbon::create($selectedYear, $selectedMonth, $d);
+            $monthDays[] = [
+                'date' => $date->toDateString(),
+                'day' => $d,
+                'weekday' => $date->format('D'),
+                'is_today' => $date->isToday(),
+            ];
+        }
+
+        return view('layouts.dashboard', compact('recent', 'sums', 'sumsByPeriod', 'user', 'streaks', 'month', 'year', 'daysInMonth', 'weekDays', 'monthDays', 'selectedMonth', 'selectedYear'));
     }
 }
