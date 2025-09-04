@@ -1,78 +1,63 @@
-<div class="modal fade" id="foodSearchModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Buscar alimento</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="meal_type_input" name="meal_type">
-                <div class="input-group mb-3">
-                    <input id="foodQuery" class="form-control" placeholder="Pesquisar alimento (ex.: arroz, frango)">
-                    <button id="foodSearchBtn" class="btn btn-primary">Buscar</button>
-                </div>
-
-                <div id="foodResults" class="list-group"></div>
-            </div>
+<div class="modal fade" id="foodSearchModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="foodSearchModalLabel">Buscar alimento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="food-search-view" class="p-3">
+          <form id="foodSearchForm" class="d-flex gap-2 mb-3">
+            @csrf
+            <input type="text" id="searchInput" class="form-control" placeholder="Arroz, ovo..." autocomplete="off">
+            <button class="btn btn-primary" id="btnSearch">Buscar</button>
+          </form>
+          <div id="results" class="list-group small"></div>
         </div>
+
+        <div id="food-detail-view" class="p-3" style="display:none;">
+          <button type="button" class="btn btn-link p-0 mb-2 small" id="backToResults">&larr; Voltar</button>
+          <h6 id="fd-name" class="fw-bold mb-1"></h6>
+          <div class="text-muted small mb-3" id="fd-base"></div>
+
+          <form id="addFoodForm">
+            <div class="row g-2 mb-3">
+              <div class="col-4">
+                <label class="form-label small mb-1">Qtd</label>
+                <input type="number" step="0.25" min="0.25" value="1" id="fd-qty" class="form-control">
+              </div>
+              <div class="col-8">
+                <label class="form-label small mb-1">Porção</label>
+                <select id="fd-portion" class="form-select"></select>
+              </div>
+            </div>
+
+            <div class="border rounded-3 mb-3 p-2 bg-light">
+              <div class="row text-center small fw-semibold">
+                <div class="col">Calorias</div>
+                <div class="col">Gorduras</div>
+                <div class="col">Carb</div>
+                <div class="col">Proteínas</div>
+              </div>
+              <div class="row text-center small" id="fd-macro-cards">
+                <div class="col" id="fd-calories">0</div>
+                <div class="col" id="fd-fat">0g</div>
+                <div class="col" id="fd-carbs">0g</div>
+                <div class="col" id="fd-protein">0g</div>
+              </div>
+            </div>
+
+            <div class="small mb-2 fw-bold">Informação Nutricional (por porção)</div>
+            <table class="table table-sm mb-3">
+              <tbody class="small" id="fd-nutrition-rows"></tbody>
+            </table>
+
+            <input type="hidden" id="meal_type_input" name="meal_type">
+            <input type="hidden" id="fd-food-id">
+            <button type="submit" class="btn btn-success w-100 mb-2">Salvar</button>
+          </form>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
-
-@push('scripts')
-    <script>
-        $(function() {
-            $('#foodSearchBtn').on('click', function() {
-                const q = $('#foodQuery').val().trim();
-                if (!q) return $('#foodResults').html('<div class="text-muted">Digite para buscar.</div>');
-                $('#foodResults').html('<div class="text-muted">Buscando...</div>');
-                $.get('/food/search', {
-                    q
-                }, function(res) {
-                    if (!res.length) return $('#foodResults').html(
-                        '<div class="text-muted">Nenhum resultado.</div>');
-                    let html = '';
-                    res.forEach(f => {
-                        const serving = f.serving_size || 100;
-                        html += `<div class="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <strong>${f.name}</strong>
-            <div class="small text-muted">P:${f.protein}g • C:${f.carbs}g • F:${f.fat}g • ${serving}g</div>
-          </div>
-          
-          <div class="d-flex align-items-center">
-            <input type="number" value="${serving}" class="form-control form-control-sm me-2 amount-input" style="width:90px"/>
-            <button class="btn btn-sm btn-success add-food-btn" data-id="${f.id}">Adicionar</button>
-          </div>
-        </div>`;
-                    });
-                    $('#foodResults').html(html);
-                });
-            });
-
-            $(document).on('click', '.add-food-btn', function() {
-                const id = $(this).data('id');
-                const amount = $(this).closest('.list-group-item').find('.amount-input').val() || 100;
-                const mealType = $('#meal_type_input').val();
-
-                $.post('/meal', {
-                    food_id: id,
-                    amount: amount,
-                    meal_type: mealType,
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                }, function() {
-                    var modal = bootstrap.Modal.getInstance(document.getElementById('foodSearchModal'));
-                    modal.hide();
-                    location.reload();
-                }).fail(function(xhr) {
-                    alert('Erro ao adicionar: ' + (xhr.responseJSON?.message || ''));
-                });
-            });
-
-            $('.meal-period-chart-container').on('click', function() {
-                currentMealType = $(this).data('meal-type');
-                $('#meal_type_input').val(currentMealType);
-                // ...
-            });
-        });
-    </script>
-@endpush

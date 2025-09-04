@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@section('title', 'Dashboard')
+
 @section('content')
     <style>
         dashboard-wrapper {
@@ -390,10 +392,102 @@
         .dark .toggle-theme {
             color: #fff;
         }
+
+        /* Card alimentação por turno */
+        .dashboard-period-card {
+            border-radius: 16px;
+            background: var(--card-bg);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .04);
+            padding: 1.25rem 1rem 1.4rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .dashboard-period-card h6 {
+            font-size: .9rem;
+            font-weight: 600;
+            text-align: center;
+            margin: 0 0 1rem;
+        }
+
+        .meal-periods {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .meal-period {
+            flex: 1;
+            min-width: 100px;
+            max-width: 140px;
+            text-align: center;
+            position: relative;
+        }
+
+        .meal-period-chart-container {
+            position: relative;
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 6px;
+        }
+
+        .meal-period-chart-container canvas {
+            position: absolute;
+            inset: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .meal-period-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #475569;
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .dark .meal-period-icon {
+            background: #1e293b;
+            color: #cbd5e1;
+        }
+
+        .meal-period-title {
+            font-weight: 600;
+            font-size: .82rem;
+            margin-bottom: 2px;
+        }
+
+        .meal-period-kcal {
+            font-size: .68rem;
+            color: var(--text-muted);
+            line-height: 1.1;
+        }
+
+        @media (max-width: 575px) {
+            .meal-period-chart-container {
+                width: 78px;
+                height: 78px;
+            }
+
+            .meal-period-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+        }
     </style>
-    <div class="toggle-theme" id="themeToggle">Modo</div>
     <button class="fab-add" id="quickAddBtn" aria-label="Adicionar alimento">+</button>
-    
+
     {{-- Inserir barra compacta depois do donut --}}
     <div class="macros-inline">
         <div class="macro-chip" data-type="carb"><span style="width:0%"></span></div>
@@ -521,13 +615,12 @@
             </div>
         </div>
         <!-- From Uiverse.io by juyi_2230 -->
-        <div id="dashboardRoot" class="dashboard-wrapper">
-            <div class="toggle-theme" id="themeToggle">Modo</div>
+        <div id="dashboardWrapper" class="dashboard-wrapper">
             <button class="fab-add" id="quickAddBtn" aria-label="Adicionar alimento">+</button>
 
             {{-- restante do conteúdo existente (cards, gráficos etc) --}}
 
-            {{-- Substituir o bloco atual da "Sequência Dieta" pelo abaixo --}}
+            {{-- Substituir o bloco atual da "Sequência Dieta" pelo abaixo  --}}
             <div class="meeting-card streak-card mt-4 p-3">
                 <div class="calendar-header">
                     <div class="title m-0" style="font-weight:600; font-size:1.05rem;">
@@ -623,26 +716,26 @@
     @push('scripts')
         <script>
             (function() {
-                const root = document.getElementById('dashboardRoot');
+                const wrapper = document.getElementById('dashboardWrapper');
+                if (!wrapper) return;
                 const saved = localStorage.getItem('dash-theme');
-                if (saved === 'dark') root.classList.add('dark');
-                document.getElementById('themeToggle').onclick = () => {
-                    root.classList.toggle('dark');
-                    localStorage.setItem('dash-theme', root.classList.contains('dark') ? 'dark' : 'light');
-                };
-                document.getElementById('quickAddBtn').onclick = () => {
-                    document.querySelector('.meal-period-chart-container')?.click();
-                };
+                if (saved === 'dark') wrapper.classList.add('dark');
+                document.getElementById('themeToggle').addEventListener('click', () => {
+                    wrapper.classList.toggle('dark');
+                    localStorage.setItem('dash-theme', wrapper.classList.contains('dark') ? 'dark' : 'light');
+                });
+                document.getElementById('quickAddBtn').addEventListener('click', () => {
+                    const mealType = 'Manhã';
+                    document.getElementById('meal_type_input')?.setAttribute('value', mealType);
+                    const label = document.getElementById('foodSearchModalLabel');
+                    if (label) label.textContent = 'Adicionar em: ' + mealType;
+                    const modalEl = document.getElementById('foodSearchModal');
+                    if (modalEl) {
+                        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                        modal.show();
+                    }
+                });
             })();
-
-            function applyMacroBars(consumed, goals) {
-                const pct = (c, g) => g > 0 ? Math.min(100, (c / g) * 100) : 0;
-                const sel = s => document.querySelector(s);
-                sel('.macro-chip[data-type="carb"] span')?.style.setProperty('width', pct(consumed.carbs, goals.carbs) + '%');
-                sel('.macro-chip[data-type="protein"] span')?.style.setProperty('width', pct(consumed.protein, goals.protein) +
-                    '%');
-                sel('.macro-chip[data-type="fat"] span')?.style.setProperty('width', pct(consumed.fat, goals.fat) + '%');
-            }
         </script>
         <script>
             $(function() {
@@ -688,17 +781,24 @@
                         data[item.name] = item.value;
                     });
 
-                    $.post("{{ route('meal.store') }}", data)
-                        .done(function(response) {
-                            if (response.success) {
-                                foodSearchModal.hide();
+                    $.post("{{ route('meal.store') }}", payload)
+                        .done(res => {
+                            if (res.success) {
+                                bootstrap.Modal.getInstance($('#foodSearchModal')[0]).hide();
                                 location.reload();
                             }
-                        }).fail(function() {
-                            alert('Ocorreu um erro ao adicionar o alimento.');
+                        })
+                        .fail(jq => {
+                            console.error('Fail', jq.status, jq.responseText);
+                            if (jq.status === 422) {
+                                const errs = jq.responseJSON?.errors || {};
+                                alert('Erros:\n' + Object.entries(errs).map(([k, v]) => k + ': ' + v.join(
+                                    ', ')).join('\n'));
+                            } else {
+                                alert('Falha (' + jq.status + ')');
+                            }
                         });
                 });
-
 
                 function updateDashboardUI() {
                     const consumed = {
@@ -845,5 +945,124 @@
                 updateDashboardUI();
             });
         </script>
+        <script>
+            let currentFood = null;
+
+            $('#foodSearchForm').on('submit', function(e) {
+                e.preventDefault();
+                const q = $('#searchInput').val().trim();
+                if (!q) return;
+                $('#results').html('<div class="px-2 py-1 small text-muted">Carregando...</div>');
+                $.getJSON('/api/foods/search', {
+                    q
+                }, function(list) {
+                    const $r = $('#results').empty();
+                    if (!list.length) {
+                        $r.append('<div class="px-2 py-1 small text-muted">Nada encontrado.</div>');
+                        return;
+                    }
+                    list.forEach(f => {
+                        $r.append(
+                            `<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center food-result" data-id="${f.id}">
+          <span>${f.name}</span>
+          <span class="badge bg-secondary">${Math.round(f.calories)} kcal/100g</span>
+        </button>`
+                        );
+                    });
+                });
+            });
+
+            $(document).on('click', '.food-result', function() {
+                const id = $(this).data('id');
+                $.getJSON(`/foods/${id}`, function(food) {
+                    currentFood = food;
+                    showFoodDetail(food);
+                });
+            });
+
+            $('#backToResults').on('click', () => {
+                $('#food-detail-view').hide();
+                $('#food-search-view').show();
+                currentFood = null;
+            });
+
+            function showFoodDetail(food) {
+                $('#food-search-view').hide();
+                $('#food-detail-view').show();
+                $('#fd-name').text(food.name);
+                $('#fd-food-id').val(food.id);
+                const portions = (food.portions && food.portions.length) ? food.portions : [{
+                    name: '100 g',
+                    grams: 100
+                }];
+                const $sel = $('#fd-portion').empty();
+                portions.forEach(p => $sel.append(`<option value="${p.grams}">${p.name}</option>`));
+                updateDetailMacros();
+            }
+
+            $('#fd-portion, #fd-qty').on('input', updateDetailMacros);
+
+            function updateDetailMacros() {
+                if (!currentFood) return;
+                const gramsPerPortion = parseFloat($('#fd-portion').val());
+                const qty = parseFloat($('#fd-qty').val());
+                const totalGrams = gramsPerPortion * qty;
+
+                // Assumindo que calories/protein/carbs/fat são por 100g
+                const cals = (currentFood.calories * totalGrams) / 100;
+                const prot = (currentFood.protein * totalGrams) / 100;
+                const carbs = (currentFood.carbs * totalGrams) / 100;
+                const fat = (currentFood.fat * totalGrams) / 100;
+
+                $('#fd-calories').text(Math.round(cals));
+                $('#fd-protein').text(prot.toFixed(2) + 'g');
+                $('#fd-carbs').text(carbs.toFixed(2) + 'g');
+                $('#fd-fat').text(fat.toFixed(2) + 'g');
+
+                const rows = [{
+                        label: 'Energia',
+                        value: Math.round(cals) + ' kcal'
+                    },
+                    {
+                        label: 'Carboidratos',
+                        value: carbs.toFixed(2) + ' g'
+                    },
+                    {
+                        label: 'Proteínas',
+                        value: prot.toFixed(2) + ' g'
+                    },
+                    {
+                        label: 'Gorduras',
+                        value: fat.toFixed(2) + ' g'
+                    },
+                ];
+                const $tbody = $('#fd-nutrition-rows').empty();
+                rows.forEach(r => $tbody.append(`<tr><td>${r.label}</td><td class="text-end">${r.value}</td></tr>`));
+            }
+
+            $('#addFoodForm').on('submit', function(e) {
+                e.preventDefault();
+                if (!currentFood) return;
+                const gramsPerPortion = parseFloat($('#fd-portion').val());
+                const qty = parseFloat($('#fd-qty').val());
+                const totalGrams = gramsPerPortion * qty;
+
+                $.post("{{ route('meal.store') }}", {
+                    _token: '{{ csrf_token() }}',
+                    food_id: $('#fd-food-id').val(),
+                    meal_type: $('#meal_type_input').val() || 'Manhã',
+                    portion_name: $('#fd-portion option:selected').text(),
+                    portion_grams: gramsPerPortion,
+                    quantity: qty,
+                    total_grams: totalGrams
+                }).done(res => {
+                    if (res.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('foodSearchModal')).hide();
+                        location.reload();
+                    } else alert('Erro ao salvar.');
+                }).fail(() => alert('Erro ao salvar.'));
+            });
+        </script>
+        
     @endpush
 @endsection

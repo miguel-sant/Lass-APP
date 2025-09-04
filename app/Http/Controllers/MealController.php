@@ -9,33 +9,41 @@ class MealController extends Controller
 {
        public function store(Request $r)
     {
-        $r->validate([
-            'food_id' => 'required|exists:foods,id',
-            'amount' => 'required|numeric|min:1',
-            'meal_type' => 'required|in:Manhã,Tarde,Noite' // Validação para o turno
+        $data = $r->validate([
+            'food_id'=>'required|exists:foods,id',
+            'meal_type'=>'required|string',
+            'portion_name'=>'nullable|string',
+            'portion_grams'=>'nullable|numeric',
+            'quantity'=>'nullable|numeric|min:0.01',
+            'total_grams'=>'nullable|numeric|min:0.01'
         ]);
 
-        // Pega o usuário logado ou o primeiro usuário para teste
-        $user = auth()->user() ?? \App\Models\User::first();
+        $food = Foods::findOrFail($data['food_id']);
+        $grams = $data['total_grams'] ?? ($food->serving_size ?: 100);
 
-        $food = Foods::findOrFail($r->food_id);
-        
-        // Fator de cálculo baseado na porção do alimento
-        $factor = $r->amount / ($food->serving_size ?: 100);
+        // Assumindo macros por 100g
+        $cal = ($food->calories * $grams)/100;
+        $prot = ($food->protein * $grams)/100;
+        $carb = ($food->carbs * $grams)/100;
+        $fat = ($food->fat * $grams)/100;
 
-        $meal = Meal::create([
-            'user_id' => $user->id,
-            'food_id' => $food->id,
-            'meal_type' => $r->meal_type, // Salva o turno vindo do request
-            'amount' => $r->amount,
-            'calories' => round($food->calories * $factor, 2),
-            'protein' => round($food->protein * $factor, 2),
-            'carbs' => round($food->carbs * $factor, 2),
-            'fat' => round($food->fat * $factor, 2),
-            'consumed_at' => now(),
+        Meal::create([
+            'user_id'=>auth()->id(),
+            'food_id'=>$food->id,
+            'meal_type'=>$data['meal_type'],
+            'amount'=>$grams, // se amount já representa gramas
+            'calories'=>$cal,
+            'protein'=>$prot,
+            'carbs'=>$carb,
+            'fat'=>$fat,
+            'portion_name'=>$data['portion_name'] ?? null,
+            'portion_grams'=>$data['portion_grams'] ?? null,
+            'quantity'=>$data['quantity'] ?? 1,
+            'total_grams'=>$grams,
+            'consumed_at'=>now(),
         ]);
 
-        return response()->json(['success' => true, 'meal' => $meal->load('food')]);
+        return response()->json(['success'=>true]);
     }
 
 
