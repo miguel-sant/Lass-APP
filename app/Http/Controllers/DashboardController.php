@@ -40,12 +40,17 @@ class DashboardController extends Controller
             'carbs' => $recent->sum('carbs'),
             'fat' => $recent->sum('fat'),
         ];
-        
-        $sumsByPeriod = [
-            'Manhã' => ['calories' => $recent->where('meal_type', 'Manhã')->sum('calories')],
-            'Tarde' => ['calories' => $recent->where('meal_type', 'Tarde')->sum('calories')],
-            'Noite' => ['calories' => $recent->where('meal_type', 'Noite')->sum('calories')],
-        ];
+
+        $sumsByPeriod = Meal::where('user_id', $user->id)
+            ->whereDate('consumed_at', $today)
+            ->selectRaw('meal_type,
+                 SUM(calories) as calories,
+                 SUM(protein) as protein,
+                 SUM(carbs) as carbs,
+                 SUM(fat) as fat')
+            ->groupBy('meal_type')
+            ->get()
+            ->keyBy('meal_type');
 
         $month = $selectedMonth;
         $year = $selectedYear;

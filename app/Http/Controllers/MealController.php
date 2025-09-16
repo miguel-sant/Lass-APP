@@ -1,5 +1,6 @@
 <?php
 namespace App\Http\Controllers;
+use Auth;
 use Illuminate\Http\Request;
 use App\Models\Meal;
 use App\Models\Foods;
@@ -9,8 +10,10 @@ class MealController extends Controller
 {
        public function store(Request $r)
     {
+        $user = Auth::user();
+        dd($r);
         $data = $r->validate([
-            'food_id'=>'required|exists:foods,id',
+            'food_name'=>'required|exists:foods,name',
             'meal_type'=>'required|string',
             'portion_name'=>'nullable|string',
             'portion_grams'=>'nullable|numeric',
@@ -18,7 +21,7 @@ class MealController extends Controller
             'total_grams'=>'nullable|numeric|min:0.01'
         ]);
 
-        $food = Foods::findOrFail($data['food_id']);
+        $food = Foods::where('name', $data['food_name'])->firstOrFail();
         $grams = $data['total_grams'] ?? ($food->serving_size ?: 100);
 
         // Assumindo macros por 100g
@@ -27,23 +30,17 @@ class MealController extends Controller
         $carb = ($food->carbs * $grams)/100;
         $fat = ($food->fat * $grams)/100;
 
-        Meal::create([
-            'user_id'=>auth()->id(),
-            'food_id'=>$food->id,
-            'meal_type'=>$data['meal_type'],
-            'amount'=>$grams, // se amount já representa gramas
-            'calories'=>$cal,
-            'protein'=>$prot,
-            'carbs'=>$carb,
-            'fat'=>$fat,
-            'portion_name'=>$data['portion_name'] ?? null,
-            'portion_grams'=>$data['portion_grams'] ?? null,
-            'quantity'=>$data['quantity'] ?? 1,
-            'total_grams'=>$grams,
-            'consumed_at'=>now(),
+        $meal = Meal::create([
+            'user_id' => $user->id,
+            'meal_type' => $request->meal_type ?? 'Manhã',
+            'calories' => $request->calories ?? 0,
+            'protein' => $request->protein ?? 0,
+            'carbs' => $request->carbs ?? 0,
+            'fat' => $request->fat ?? 0,
+            'consumed_at' => $request->consumed_at ?? now(),
         ]);
 
-        return response()->json(['success'=>true]);
+        return response()->json(['success'=>true,  'meal' => $meal]);
     }
 
 
